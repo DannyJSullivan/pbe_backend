@@ -1,0 +1,174 @@
+import os
+import random
+import discord
+from discord.ext import commands
+from discord.ext import tasks
+from dotenv import load_dotenv
+import pymongo
+from bson import ObjectId
+import re
+
+from flask import Flask
+from flask_cors import CORS
+from flask_restful import Api, reqparse, Resource
+from unidecode import unidecode
+import datetime
+
+from oauth2client.service_account import ServiceAccountCredentials
+import gspread
+import json
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+import requests
+import time
+from bs4 import BeautifulSoup
+
+# Flask app setup
+app = Flask(__name__)
+api = Api(app)
+parser = reqparse.RequestParser()
+cors = CORS(app)
+
+# MongoDB connections
+mongo_uri = os.getenv("MONGO_URI")
+client = pymongo.MongoClient(mongo_uri)
+pbe_db = client.pbe
+pbe_task_collection = pbe_db.tasks
+pbe_player_collection = pbe_db.players
+
+
+# HELPER METHODS
+def ignore_case(x):
+    re.compile(x, re.IGNORECASE)
+
+
+def update_object(obj_from, obj_to, key):
+    if obj_from.get(key) is not None:
+        obj_to.update({key: obj_from.get(key)})
+    else:
+        if 'tpe' in key or 'number' in key or 'babip_' in key \
+                or 'ak_' in key or 'gap_' in key or 'power_' in key \
+                or 'ep_' in key or 'speed' in key or 'steal' in key \
+                or 'bunt' in key or 'field_' in key or 'arm' in key \
+                or 'double_' in key or 'c_' in key or 'mov_' in key \
+                or 'con_' in key or 'stamina' in key or 'hold_' in key \
+                or 'gb_' in key or 'fastball' in key or 'sinker' in key \
+                or 'cutter' in key or 'curveball' in key \
+                or 'slider' in key or 'changeup' in key \
+                or 'splitter' in key or 'forkball' in key \
+                or 'circle_' in key or 'screwball' in key \
+                or 'knuckle' in key:
+            obj_to.update({key: 0})
+        else:
+            obj_to.update({key: 'N/A'})
+
+
+def get_player_info(obj_from, obj_to):
+    update_object(obj_from, obj_to, 'player_forum_code')
+    update_object(obj_from, obj_to, 'forum_name')
+    update_object(obj_from, obj_to, 'team')
+    update_object(obj_from, obj_to, 'league')
+    update_object(obj_from, obj_to, 'conference')
+    update_object(obj_from, obj_to, 'division')
+    update_object(obj_from, obj_to, 'season')
+    update_object(obj_from, obj_to, 'tpe')
+    update_object(obj_from, obj_to, 'user_forum_code')
+    update_object(obj_from, obj_to, 'last_updated')
+    update_object(obj_from, obj_to, 'player_name')
+    update_object(obj_from, obj_to, 'normalized_name')
+    update_object(obj_from, obj_to, 'position')
+    update_object(obj_from, obj_to, 'discord')
+    update_object(obj_from, obj_to, 'tpe_banked')
+    return obj_to
+
+
+def get_batter_info(obj_from, obj_to):
+    return obj_to
+
+
+def get_pitcher_info(obj_from, obj_to):
+    return obj_to
+
+
+# return all possible info
+def get_players_all():
+    players = []
+    cursor = pbe_player_collection.find({})
+    for document in cursor:
+        del document['_id']
+        players.append(document)
+
+    return players
+
+
+# return all common info
+def get_players_basic():
+    players = []
+    cursor = pbe_player_collection.find({})
+    for player in cursor:
+        p = {}
+        players.append(get_player_info(player, p))
+    return players
+
+
+# return teams w/ consolidated info
+def get_teams():
+    return
+
+
+# return only position players
+def get_players_batters():
+    return
+
+
+# return only pitchers
+def get_players_pitchers():
+    return
+
+
+# get information for specific player
+def get_player(player_id):
+    return
+
+
+# get information for specific user
+def get_user(user_id):
+    return
+
+
+# TODO: scrape stats, return them here...
+def get_player_stats(player_id):
+    return
+
+
+# TODO: scrape bank, return them here...
+def get_player_bank():
+    return
+
+
+# ENDPOINT CLASSES
+class Home(Resource):
+    def get(self):
+        return 'PBE Backend Service'
+
+
+class PlayersAll(Resource):
+    def get(self):
+        return get_players_all()
+
+
+class PlayersBasic(Resource):
+    def get(self):
+        return get_players_basic()
+
+
+# ENDPOINTS
+api.add_resource(Home, '/')
+api.add_resource(PlayersAll, '/players/all')
+api.add_resource(PlayersBasic, '/players/basic')
+
+# APPLICATION
+if __name__ == '__main__':
+    app.run()
