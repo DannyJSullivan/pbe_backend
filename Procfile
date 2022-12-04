@@ -1,1 +1,1 @@
-gunicorn pbe_backend:app
+web gunicorn pbe_backend:app
