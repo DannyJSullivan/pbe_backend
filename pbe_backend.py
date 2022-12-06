@@ -166,7 +166,8 @@ def get_teams_active():
     players = pbe_player_collection.find({})
     for player in players:
         try:
-            if 'Retired' not in  player['team']:
+            if 'Retired' not in player['team'] and 'Free Agents' not in player['team'] \
+                    and 'Draftees' not in player['team']:
                 team_list_counter = 0
                 team_exists = False
                 for team in teams_list:
