@@ -119,8 +119,12 @@ def get_players_active_basic():
     cursor = pbe_player_collection.find({})
     for player in cursor:
         p = {}
-        if 'Retired' not in player['team']:
-            players.append(get_player_info(player, p))
+        try:
+            if 'Retired' not in player['team']:
+                players.append(get_player_info(player, p))
+        except Exception as e:
+            print('Player has no team: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
+                  + player['player_forum_code'])
     return players
 
 
