@@ -113,6 +113,17 @@ def get_players_basic():
     return players
 
 
+# return all common info for active players
+def get_players_active_basic():
+    players = []
+    cursor = pbe_player_collection.find({})
+    for player in cursor:
+        p = {}
+        if 'Retired' not in player['league']:
+            players.append(get_player_info(player, p))
+    return players
+
+
 # return teams w/ consolidated info
 def get_teams():
     return
@@ -164,10 +175,18 @@ class PlayersBasic(Resource):
         return get_players_basic()
 
 
+class PlayersBasicActive(Resource):
+    def get(self):
+        return get_players_active_basic()
+
+
 # ENDPOINTS
 api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
 api.add_resource(PlayersBasic, '/players/basic')
+api.add_resource(PlayersBasicActive, '/players/basic/active')
+# api.add_resource(PlayersBasic, '/teams/basic')
+# api.add_resource(PlayersBasic, '/teams/basic/active')
 
 # APPLICATION
 if __name__ == '__main__':
