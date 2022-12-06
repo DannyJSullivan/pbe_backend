@@ -119,14 +119,46 @@ def get_players_active_basic():
     cursor = pbe_player_collection.find({})
     for player in cursor:
         p = {}
-        if 'Retired' not in player['league']:
+        if 'Retired' not in player['team']:
             players.append(get_player_info(player, p))
     return players
 
 
 # return teams w/ consolidated info
 def get_teams():
-    return
+    teams_list = []
+    players = pbe_player_collection.find({})
+    for player in players:
+        try:
+            team_list_counter = 0
+            team_exists = False
+            for team in teams_list:
+                if team['name'] in player['team']:
+                    team_exists = True
+                    break
+                team_list_counter = team_list_counter + 1
+
+            if team_exists:
+                team_to_update = teams_list[team_list_counter]
+                tpe_total = team_to_update.get('tpe') + player['tpe']
+                avg_tpe = round(tpe_total / (team_to_update.get('player_count') + 1), 2)
+                teams_list[team_list_counter].update({'tpe': tpe_total,
+                                                      'average_tpe': avg_tpe,
+                                                      'player_count': team_to_update.get('player_count') + 1})
+            else:
+                teams_list.append({'name': player['team'],
+                                   'league': player['league'],
+                                   'conference': player['conference'],
+                                   'division': player['division'],
+                                   'tpe': player['tpe'],
+                                   'average_tpe': player['tpe'],
+                                   'player_count': 1})
+        except Exception as e:
+            print('Error getting team for player: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
+                  + player['player_forum_code'])
+            print(e)
+
+    return teams_list
 
 
 # return only position players
@@ -180,12 +212,17 @@ class PlayersBasicActive(Resource):
         return get_players_active_basic()
 
 
+class Teams(Resource):
+    def get(self):
+        return get_teams()
+
+
 # ENDPOINTS
 api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
 api.add_resource(PlayersBasic, '/players/basic')
 api.add_resource(PlayersBasicActive, '/players/basic/active')
-# api.add_resource(PlayersBasic, '/teams/basic')
+api.add_resource(Teams, '/teams')
 # api.add_resource(PlayersBasic, '/teams/basic/active')
 
 # APPLICATION
