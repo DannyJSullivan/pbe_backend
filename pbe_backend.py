@@ -13,6 +13,7 @@ from flask_cors import CORS
 from flask_restful import Api, reqparse, Resource
 from unidecode import unidecode
 import datetime
+import json2html
 
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
@@ -289,6 +290,11 @@ class PlayersBasicActive(Resource):
         return get_players_active_basic()
 
 
+class PlayersBasicActiveHTML(Resource):
+    def get(self):
+        return json2html.json2html.convert(json=get_players_active_basic())
+
+
 class PlayersBasicMajors(Resource):
     def get(self):
         return get_players_majors()
@@ -314,6 +320,7 @@ api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
 api.add_resource(PlayersBasic, '/players/basic')
 api.add_resource(PlayersBasicActive, '/players/basic/active')
+api.add_resource(PlayersBasicActiveHTML, '/players/basic/active/html')
 api.add_resource(PlayersBasicMajors, '/players/basic/majors')
 api.add_resource(PlayersBasicMinors, '/players/basic/minors')
 api.add_resource(Teams, '/teams')
