@@ -65,30 +65,6 @@ def update_object(obj_from, obj_to, key):
             obj_to.update({key: 'N/A'})
 
 
-def update_object_html(obj_from, html,  key):
-    html = html + "<td>"
-    if obj_from.get(key) is not None and obj_from.get(key) != "":
-        html = html + str(obj_from.get(key))
-    else:
-        if 'tpe' in key or 'number' in key or 'babip_' in key \
-                or 'ak_' in key or 'gap_' in key or 'power_' in key \
-                or 'ep_' in key or 'speed' in key or 'steal' in key \
-                or 'bunt' in key or 'field_' in key or 'arm' in key \
-                or 'double_' in key or 'c_' in key or 'mov_' in key \
-                or 'con_' in key or 'stamina' in key or 'hold_' in key \
-                or 'gb_' in key or 'fastball' in key or 'sinker' in key \
-                or 'cutter' in key or 'curveball' in key \
-                or 'slider' in key or 'changeup' in key \
-                or 'splitter' in key or 'forkball' in key \
-                or 'circle_' in key or 'screwball' in key \
-                or 'knuckle' in key:
-            html = html + "0"
-        else:
-            html = html + "N/A"
-
-    return html + "</td>"
-
-
 def get_player_info(obj_from, obj_to):
     update_object(obj_from, obj_to, 'player_forum_code')
     update_object(obj_from, obj_to, 'forum_name')
@@ -109,29 +85,6 @@ def get_player_info(obj_from, obj_to):
     update_object(obj_from, obj_to, 'throws')
     update_object(obj_from, obj_to, 'archetype')
     return obj_to
-
-
-def get_player_info_html(obj_from, html):
-    html = html + "<tr>"
-    html = html + update_object_html(obj_from, html, 'player_forum_code')
-    html = html + update_object_html(obj_from, html, 'forum_name')
-    html = html + update_object_html(obj_from, html, 'team')
-    html = html + update_object_html(obj_from, html, 'league')
-    html = html + update_object_html(obj_from, html, 'conference')
-    html = html + update_object_html(obj_from, html, 'division')
-    html = html + update_object_html(obj_from, html, 'season')
-    html = html + update_object_html(obj_from, html, 'tpe')
-    html = html + update_object_html(obj_from, html, 'user_forum_code')
-    html = html + update_object_html(obj_from, html, 'last_updated')
-    html = html + update_object_html(obj_from, html, 'player_name')
-    html = html + update_object_html(obj_from, html, 'normalized_name')
-    html = html + update_object_html(obj_from, html, 'position')
-    html = html + update_object_html(obj_from, html, 'discord')
-    html = html + update_object_html(obj_from, html, 'tpe_banked')
-    html = html + update_object_html(obj_from, html, 'bats')
-    html = html + update_object_html(obj_from, html, 'throws')
-    html = html + update_object_html(obj_from, html, 'archetype')
-    return html + "</tr>"
 
 
 def get_batter_info(obj_from, obj_to):
@@ -176,43 +129,6 @@ def get_players_active_basic():
             print('Player has no team: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
                   + player['player_forum_code'])
     return players
-
-
-# return all common info for active players
-def get_players_active_basic_html():
-    cursor = pbe_player_collection.find({})
-    html = "<table>" \
-           "<thead>" \
-           "<tr>" \
-           "<th>Player Forum ID</th>" \
-           "<th>Forum Name</th>" \
-           "<th>Team</th>" \
-           "<th>League</th>" \
-           "<th>Conference</th>" \
-           "<th>Division</th>" \
-           "<th>Season</th>" \
-           "<th>TPE</th>" \
-           "<th>User Forum ID</th>" \
-           "<th>Last Updated</th>" \
-           "<th>Player Name</th>" \
-           "<th>Normalized Name</th>" \
-           "<th>Position</th>" \
-           "<th>Discord</th>" \
-           "<th>TPE Banked</th>" \
-           "<th>Bats</th>" \
-           "<th>Throws</th>" \
-           "<th>Archetype</th>" \
-           "</tr>" \
-           "</thead>" \
-           "<tbody>"
-    for player in cursor:
-        try:
-            if 'Retired' not in player['team']:
-                html = html + get_player_info_html(player, html)
-        except Exception as e:
-            print('Player has no team: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
-                  + player['player_forum_code'])
-    return html + "</tbody></table>"
 
 
 # return all common info for players in the majors
@@ -373,11 +289,6 @@ class PlayersBasicActive(Resource):
         return get_players_active_basic()
 
 
-class PlayersBasicActiveHTML(Resource):
-    def get(self):
-        return get_players_active_basic_html()
-
-
 class PlayersBasicMajors(Resource):
     def get(self):
         return get_players_majors()
@@ -403,7 +314,6 @@ api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
 api.add_resource(PlayersBasic, '/players/basic')
 api.add_resource(PlayersBasicActive, '/players/basic/active')
-api.add_resource(PlayersBasicActiveHTML, '/players/basic/active/html')
 api.add_resource(PlayersBasicMajors, '/players/basic/majors')
 api.add_resource(PlayersBasicMinors, '/players/basic/minors')
 api.add_resource(Teams, '/teams')
