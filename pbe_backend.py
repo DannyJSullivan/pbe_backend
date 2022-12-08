@@ -39,6 +39,9 @@ pbe_db = client.pbe
 pbe_task_collection = pbe_db.tasks
 pbe_player_collection = pbe_db.players
 
+# TODO: When adding new imports, be sure to add them to the requirements.txt file. Run pip freeze >
+#  requirements.txt to do so.
+
 
 # HELPER METHODS
 def ignore_case(x):
