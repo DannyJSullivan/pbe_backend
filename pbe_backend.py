@@ -45,7 +45,7 @@ def ignore_case(x):
 
 
 def update_object(obj_from, obj_to, key):
-    if obj_from.get(key) is not None:
+    if obj_from.get(key) is not None and obj_from.get(key) != "":
         obj_to.update({key: obj_from.get(key)})
     else:
         if 'tpe' in key or 'number' in key or 'babip_' in key \
