@@ -81,6 +81,9 @@ def get_player_info(obj_from, obj_to):
     update_object(obj_from, obj_to, 'position')
     update_object(obj_from, obj_to, 'discord')
     update_object(obj_from, obj_to, 'tpe_banked')
+    update_object(obj_from, obj_to, 'bats')
+    update_object(obj_from, obj_to, 'throws')
+    update_object(obj_from, obj_to, 'archetype')
     return obj_to
 
 
@@ -124,6 +127,38 @@ def get_players_active_basic():
                 players.append(get_player_info(player, p))
         except Exception as e:
             print('Player has no team: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
+                  + player['player_forum_code'])
+    return players
+
+
+# return all common info for players in the majors
+def get_players_majors():
+    players = []
+    cursor = pbe_player_collection.find({})
+    for player in cursor:
+        p = {}
+        try:
+            if 'Retired' not in player['team'] and 'Draftees' not in player['team'] and 'Free Agents' \
+                    not in player['team'] and 'MiLPBE' not in player['league']:
+                players.append(get_player_info(player, p))
+        except Exception as e:
+            print('Player has no team or league: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
+                  + player['player_forum_code'])
+    return players
+
+
+# return all common info for players in the minors
+def get_players_minors():
+    players = []
+    cursor = pbe_player_collection.find({})
+    for player in cursor:
+        p = {}
+        try:
+            if 'Retired' not in player['team'] and 'Draftees' not in player['team'] and 'Free Agents' \
+                    not in player['team'] and player['league'] != 'PBE':
+                players.append(get_player_info(player, p))
+        except Exception as e:
+            print('Player has no team or league: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
                   + player['player_forum_code'])
     return players
 
@@ -254,6 +289,16 @@ class PlayersBasicActive(Resource):
         return get_players_active_basic()
 
 
+class PlayersBasicMajors(Resource):
+    def get(self):
+        return get_players_majors()
+
+
+class PlayersBasicMinors(Resource):
+    def get(self):
+        return get_players_minors()
+
+
 class Teams(Resource):
     def get(self):
         return get_teams()
@@ -269,6 +314,8 @@ api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
 api.add_resource(PlayersBasic, '/players/basic')
 api.add_resource(PlayersBasicActive, '/players/basic/active')
+api.add_resource(PlayersBasicMajors, '/players/basic/majors')
+api.add_resource(PlayersBasicMinors, '/players/basic/minors')
 api.add_resource(Teams, '/teams')
 api.add_resource(TeamsActive, '/teams/active')
 # api.add_resource(PlayersBasic, '/teams/basic/active')
