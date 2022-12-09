@@ -1,30 +1,11 @@
 import os
-import random
-import discord
-from discord.ext import commands
-from discord.ext import tasks
-from dotenv import load_dotenv
 import pymongo
-from bson import ObjectId
 import re
 
 from flask import Flask
 from flask_cors import CORS
 from flask_restful import Api, reqparse, Resource
-from unidecode import unidecode
-import datetime
 import json2html
-
-from oauth2client.service_account import ServiceAccountCredentials
-import gspread
-import json
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-import requests
-import time
-from bs4 import BeautifulSoup
 
 # Flask app setup
 app = Flask(__name__)
