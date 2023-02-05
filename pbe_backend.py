@@ -269,6 +269,11 @@ class PlayersBasic(Resource):
         return get_players_basic()
 
 
+class PlayersBasicHTML(Resource):
+    def get(self):
+        return json2html.json2html.convert(json=get_players_basic())
+
+
 class PlayersBasicActive(Resource):
     def get(self):
         return get_players_active_basic()
@@ -303,6 +308,7 @@ class TeamsActive(Resource):
 api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
 api.add_resource(PlayersBasic, '/players/basic')
+api.add_resource(PlayersBasicHTML, '/players/basic/html')
 api.add_resource(PlayersBasicActive, '/players/basic/active')
 api.add_resource(PlayersBasicActiveHTML, '/players/basic/active/html')
 api.add_resource(PlayersBasicMajors, '/players/basic/majors')
