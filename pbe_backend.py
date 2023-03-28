@@ -79,6 +79,7 @@ def get_player_info(obj_from, obj_to):
     update_object(obj_from, obj_to, 'bats')
     update_object(obj_from, obj_to, 'throws')
     update_object(obj_from, obj_to, 'archetype')
+    update_object(obj_from, obj_to, 'birthplace')
     return obj_to
 
 
@@ -571,11 +572,6 @@ class TeamsActive(Resource):
         return get_teams_active()
 
 
-class PlayersAllHTML(Resource):
-    def get(self):
-        return json2html.json2html.convert(json=get_players_all())
-
-
 class UserTransactions(Resource):
     def get(self, forum_name):
         return get_user_transactions(forum_name)
@@ -589,7 +585,6 @@ class UserOverview(Resource):
 # ENDPOINTS
 api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
-api.add_resource(PlayersAllHTML, '/players/all/html')
 api.add_resource(PlayersBasic, '/players/basic')
 api.add_resource(PlayersBasicHTML, '/players/basic/html')
 api.add_resource(PlayersBasicActive, '/players/basic/active')
