@@ -1,13 +1,21 @@
+import json
 import os
+from datetime import datetime
+
 import pymongo
 import re
 
+import requests
+from bs4 import BeautifulSoup
 from flask import Flask
 from flask_cors import CORS
 from flask_restful import Api, reqparse, Resource
 import json2html
 
 # Flask app setup
+from googleapiclient.discovery import build
+from oauth2client.service_account import ServiceAccountCredentials
+
 app = Flask(__name__)
 api = Api(app)
 parser = reqparse.RequestParser()
@@ -19,6 +27,8 @@ client = pymongo.MongoClient(mongo_uri)
 pbe_db = client.pbe
 pbe_task_collection = pbe_db.tasks
 pbe_player_collection = pbe_db.players
+bank_collection = pbe_db.bank
+task_collection = pbe_db.tasks
 
 # TODO: When adding new imports, be sure to add them to the requirements.txt file. Run pip freeze >
 #  requirements.txt to do so.
@@ -85,7 +95,6 @@ def get_players_all():
     players = []
     cursor = pbe_player_collection.find({})
     for document in cursor:
-        del document['_id']
         players.append(document)
 
     return players
@@ -253,6 +262,264 @@ def get_player_bank():
     return
 
 
+# get 10 most recent transactions for a user
+def get_user_transactions(forum_name):
+    t1 = lookup_transactions(forum_name)
+    t2 = lookup_video_transactions(forum_name)
+    t3 = lookup_media_transactions(forum_name)
+    t4 = lookup_graphic_transactions(forum_name)
+
+    t_list = []
+
+    for t in t1:
+        t_list.append(t)
+    for t in t2:
+        t_list.append(t)
+    for t in t3:
+        t_list.append(t)
+    for t in t4:
+        t_list.append(t)
+
+    try:
+        t_list.sort(key=lambda tr: datetime.strptime(tr[0], "%m/%d/%Y"))
+        return format_most_recent_transactions(t_list, forum_name, False)
+    except:
+        return format_most_recent_transactions(t1, forum_name, True)
+
+
+def lookup_transactions(forum_name):
+    bank_sheet_id = "15OMqbS-8cA21JFdettLs6A0K4A1l4Vjls7031uAFAkc"
+    bank_sheet_range = 'Logs!A:H'
+
+    key = json.loads(os.environ.get("GCP_KEY"))
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(key)
+
+    service = build('sheets', 'v4', credentials=credentials)
+
+    sheet = service.spreadsheets()
+    result = sheet.values().get(spreadsheetId=bank_sheet_id,
+                                range=bank_sheet_range).execute()
+    values = result.get('values', [])
+
+    ts = []
+
+    for row in values:
+        if row[2].lower() == forum_name.lower():
+            if len(row) < 8:
+                ts.append([row[0], row[2], row[6], "N/A"])
+            else:
+                ts.append([row[0], row[2], row[6], row[7]])
+
+    return ts
+
+
+def lookup_media_transactions(forum_name):
+    bank_sheet_id = "15OMqbS-8cA21JFdettLs6A0K4A1l4Vjls7031uAFAkc"
+    bank_sheet_range = 'Media Logs!A:R'
+
+    key = json.loads(os.environ.get("GCP_KEY"))
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(key)
+
+    service = build('sheets', 'v4', credentials=credentials)
+
+    sheet = service.spreadsheets()
+    result = sheet.values().get(spreadsheetId=bank_sheet_id,
+                                range=bank_sheet_range).execute()
+    values = result.get('values', [])
+
+    ts = []
+
+    for row in values:
+        if row[1].lower() == forum_name.lower():
+            ts.append([row[0], row[1], row[15], row[2] + ": " + row[3]])
+
+    return ts
+
+
+def lookup_graphic_transactions(forum_name):
+    bank_sheet_id = "15OMqbS-8cA21JFdettLs6A0K4A1l4Vjls7031uAFAkc"
+    bank_sheet_range = 'Graphic Logs!A:F'
+
+    key = json.loads(os.environ.get("GCP_KEY"))
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(key)
+
+    service = build('sheets', 'v4', credentials=credentials)
+
+    sheet = service.spreadsheets()
+    result = sheet.values().get(spreadsheetId=bank_sheet_id,
+                                range=bank_sheet_range).execute()
+    values = result.get('values', [])
+
+    ts = []
+
+    for row in values:
+        if len(row) > 1:
+            if row[2].lower() == forum_name.lower():
+                if len(row) > 5:
+                    ts.append([row[0], row[2], row[3], row[5]])
+                else:
+                    ts.append([row[0], row[2], row[3], "N/A"])
+
+    return ts
+
+
+def lookup_video_transactions(forum_name):
+    bank_sheet_id = "15OMqbS-8cA21JFdettLs6A0K4A1l4Vjls7031uAFAkc"
+    bank_sheet_range = 'Video Logs!A:I'
+
+    key = json.loads(os.environ.get("GCP_KEY"))
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(key)
+
+    service = build('sheets', 'v4', credentials=credentials)
+
+    sheet = service.spreadsheets()
+    result = sheet.values().get(spreadsheetId=bank_sheet_id,
+                                range=bank_sheet_range).execute()
+    values = result.get('values', [])
+
+    ts = []
+
+    for row in values:
+        if len(row) > 1 and row[2].lower() == forum_name.lower():
+            ts.append([row[0], row[2], row[6], row[3]])
+
+    return ts
+
+
+def format_most_recent_transactions(ts, forum_name, error):
+    if len(ts) == 0:
+        return "No transactions found for " + forum_name + "."
+
+    results = []
+
+    for t in ts:
+        results.append({'date': t[0], 'forum_name': t[1], 'amount': t[2], 'reason': t[3]})
+
+    return results
+
+
+def pad_string_r(value, amount):
+    return str(value).rjust(amount)
+
+
+def pad_string_l(value, amount):
+    return str(value).ljust(amount)
+
+
+def ignore_case(x):
+    re.compile(x, re.IGNORECASE)
+
+
+def get_active_player_by_forum_name(name):
+    players = pbe_player_collection.find({"forum_name": re.compile(str(name), re.IGNORECASE)})
+
+    player = None
+    for p in players:
+        print(p)
+
+        if p is not None and "Retired" not in p.get("league") and "Retired" not in p.get("team") \
+                and p.get("forum_name").lower() == name.lower():
+            player = p
+
+    return player
+
+
+def get_user_overview(forum_name):
+    user_info = get_active_player_by_forum_name(forum_name)
+    balance = bank_collection.find_one({"username": user_info["forum_name"]})['balance']
+    last_seen = get_last_seen(user_info['user_url'])
+
+    return {
+        "player_name": user_info['player_name'],
+        "season": user_info["season"],
+        "team": user_info["team"],
+        "position": user_info["position"],
+        "tpe": user_info["tpe"],
+        "forum_name": user_info["forum_name"],
+        "last_seen": last_seen,
+        "last_updated": user_info["last_updated"],
+        "balance": balance,
+        "tasks": get_tasks(user_info["forum_name"])
+    }
+
+
+def get_last_seen(url):
+    page_content = requests.get(url).text
+    soup = BeautifulSoup(page_content, "html.parser")
+
+    profile_stats = soup.find("div", attrs={"id": "profile-statistics"})
+
+    divs = profile_stats.findAll("div", attrs={"class": "row2"})
+
+    if len(divs) >= 4:
+        return str(divs[2].text).replace("Last Seen: ", "")
+
+    return "Could not find profile info!"
+
+
+def get_tasks(forum_name):
+    topic_nums = []
+
+    tasks = []
+
+    # activity check (only get the top one)
+    ac = "https://probaseballexperience.jcink.net/index.php?showforum=77"
+
+    # point tasks (get all forum topics except for the last one
+    pt = "https://probaseballexperience.jcink.net/index.php?showforum=56"
+
+    page_content = requests.get(ac).text
+    soup = BeautifulSoup(page_content, "html.parser")
+    table = soup.find("div", attrs={"id": "topic-list"})
+    newest_topic = table.find("tr", attrs={"class": "topic-row"})
+    rows = newest_topic.findAll("td", attrs={"class": "row4"})
+    link = rows[1].find("a").get("href")
+    name = str(rows[1].text).replace("\n", "").split("(")[0].strip()
+
+    topic_nums.append(get_topic_num_from_url(link))
+
+    page_content = requests.get(pt).text
+    soup = BeautifulSoup(page_content, "html.parser")
+    table = soup.find("div", attrs={"id": "topic-list"})
+    rows = table.findAll("tr", attrs={"class": "topic-row"})
+
+    for row in rows:
+        # make sure thread is not locked
+        if row.find("img", attrs={"title": "Locked thread"}) is None:
+            urls = row.findAll("td", attrs={"class": "row4"})
+            if len(urls) > 2:
+                link = urls[1].find("a").get("href")
+                name = str(urls[1].text).replace("\n", "").split("(Pages")[0].strip()
+                if name != "Introduction PT":
+                    topic_nums.append(get_topic_num_from_url(link))
+
+    for topic_num in topic_nums:
+        task_result = did_user_complete_task(forum_name, topic_num)
+        tasks.append({task_result[0]: task_result[1]})
+
+    return tasks
+
+
+def get_topic_num_from_url(url):
+    return re.split('&showtopic=', url)[1]
+
+
+def did_user_complete_task(user, task):
+    result = []
+
+    task = task_collection.find_one({"topic_num": task})
+    result.append(task.get('task'))
+
+    if task is not None:
+        for forum_name in task['names']:
+            if user.lower() == forum_name.lower():
+                result.append(True)
+                return result
+
+        result.append(False)
+        return result
+
+
 # ENDPOINT CLASSES
 class Home(Resource):
     def get(self):
@@ -304,9 +571,25 @@ class TeamsActive(Resource):
         return get_teams_active()
 
 
+class PlayersAllHTML(Resource):
+    def get(self):
+        return json2html.json2html.convert(json=get_players_all())
+
+
+class UserTransactions(Resource):
+    def get(self, forum_name):
+        return get_user_transactions(forum_name)
+
+
+class UserOverview(Resource):
+    def get(self, forum_name):
+        return get_user_overview(forum_name)
+
+
 # ENDPOINTS
 api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
+api.add_resource(PlayersAllHTML, '/players/all/html')
 api.add_resource(PlayersBasic, '/players/basic')
 api.add_resource(PlayersBasicHTML, '/players/basic/html')
 api.add_resource(PlayersBasicActive, '/players/basic/active')
@@ -316,6 +599,10 @@ api.add_resource(PlayersBasicMinors, '/players/basic/minors')
 api.add_resource(Teams, '/teams')
 api.add_resource(TeamsActive, '/teams/active')
 # api.add_resource(PlayersBasic, '/teams/basic/active')
+
+# ENDPOINTS FOR OTHERS
+api.add_resource(UserTransactions, '/user/<forum_name>/transactions')  # for Nerji
+api.add_resource(UserOverview, '/user/<forum_name>/overview')  # for Nerji
 
 # APPLICATION
 if __name__ == '__main__':
