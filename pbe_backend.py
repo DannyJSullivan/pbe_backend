@@ -123,6 +123,7 @@ def get_players_active_basic():
         except Exception as e:
             print('Player has no team: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
                   + player['player_forum_code'])
+            print(e)
     return players
 
 
@@ -139,6 +140,7 @@ def get_players_majors():
         except Exception as e:
             print('Player has no team or league: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
                   + player['player_forum_code'])
+            print(e)
     return players
 
 
@@ -155,6 +157,7 @@ def get_players_minors():
         except Exception as e:
             print('Player has no team or league: https://probaseballexperience.jcink.net/index.php?showtopic=28451'
                   + player['player_forum_code'])
+            print(e)
     return players
 
 
