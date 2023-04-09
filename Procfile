@@ -1,1 +1,1 @@
-web gunicorn pbe_backend:app --preload
+web gunicorn pbe_backend:app
