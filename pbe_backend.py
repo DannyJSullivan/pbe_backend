@@ -1,16 +1,18 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pymongo
 import re
 
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask
+from flask import Flask, send_from_directory, request
 from flask_cors import CORS
 from flask_restful import Api, reqparse, Resource
 import json2html
+
+import pandas as pd
 
 # Flask app setup
 from googleapiclient.discovery import build
@@ -30,8 +32,9 @@ pbe_player_collection = pbe_db.players
 bank_collection = pbe_db.bank
 task_collection = pbe_db.tasks
 
-# TODO: When adding new imports, be sure to add them to the requirements.txt file. Run pip freeze >
-#  requirements.txt to do so.
+
+# TODO: When adding new imports, be sure to add them to the requirements.txt file.
+#  Run pip freeze > requirements.txt to do so.
 
 
 # HELPER METHODS
@@ -524,6 +527,117 @@ def did_user_complete_task(user, task):
         return result
 
 
+# Forum Scraping
+
+class Post:
+    forum_name: ""
+    date: ""
+
+    def __init__(self, t_forum_name, t_date):
+        self.forum_name = t_forum_name
+        self.date = t_date
+
+    def as_dict(self):
+        return {'forum_name': self.forum_name, 'date': self.date}
+
+
+class UserPosts:
+    forum_name: ""
+    dates: []
+    count: 0
+    money: 0
+
+    def __init__(self, t_forum_name, t_date):
+        self.forum_name = t_forum_name
+        self.dates = t_date
+        self.count = len(set(self.dates))
+
+        money = 0
+        if self.count <= 3:
+            money = self.count * 250000
+        elif 3 < self.count < 7:
+            money = 750000 + ((self.count - 3) * 62500)
+        elif self.count >= 7:
+            money = 1000000
+
+        self.money = money
+
+    def as_dict(self):
+        return {'forum_name': self.forum_name, 'money': self.money, 'date': self.dates, 'count': self.count}
+
+
+def scrape_forum(topic_num):
+    url = "https://probaseballexperience.jcink.net/index.php?showtopic=" + topic_num
+    page_content = requests.get(url).text
+    soup = BeautifulSoup(page_content, "html.parser")
+
+    pages = soup.find("span", attrs={"class": "pagination_pagetxt"})
+
+    if pages is not None:
+        pages = pages.text
+        page_count = re.sub("Pages: \\(", "", pages)
+        page_count = re.sub("\\)", "", page_count)
+    else:
+        page_count = 1
+
+    page_count = int(page_count)
+
+    posts = []
+
+    # go through each page of posts
+    for x in range(1, page_count + 1):
+        if x == 1:
+            page_content = requests.get(url + "&st=0").text
+        else:
+            page_content = requests.get(url + "&st=" + str(((x - 1) * 15))).text
+
+        soup = BeautifulSoup(page_content, "html.parser")
+        names = soup.findAll("span", attrs={"class": "normalname"})
+        dates = soup.findAll("span", attrs={"class": "postdetails"})
+
+        # get every other date since this picks up unrelated info
+        del dates[1::2]
+
+        # go through each post on a page, create users for each post and track necessary info
+        for i in range(0, len(names)):
+            date = dates[i].text.replace("Posted: ", "").split(",")[0]
+
+            if 'Today' in date or 'ago' in date:
+                date = datetime.today().strftime("%b %d %Y")
+            elif 'Yesterday' in date:
+                date = (datetime.today() - timedelta(days=1)).strftime("%b %d %Y")
+
+            post = Post(names[i].text, date)
+            posts.append(post)
+
+    user_dates = {}
+    for p in posts:
+        if user_dates.get(p.forum_name) is not None:
+            ud = user_dates.get(p.forum_name)
+            ud.append(p.date)
+            user_dates.update({p.forum_name: ud})
+        else:
+            date = [p.date]
+            user_dates.update({p.forum_name: date})
+
+    posts_summary = []
+    for key in user_dates:
+        posts_summary.append(UserPosts(key, user_dates.get(key)))
+
+    # remove first element
+    posts.pop(0)
+
+    # export to csv
+    filename = export_to_csv(posts_summary, topic_num)
+    return send_from_directory("./", filename)
+
+
+def export_to_csv(posts, topic_num):
+    data = pd.DataFrame([p.as_dict() for p in posts])
+    data.to_csv("PBE_Forum_Scraper_" + topic_num + ".csv")
+    return "PBE_Forum_Scraper_" + topic_num + ".csv"
+
+
 # ENDPOINT CLASSES
 class Home(Resource):
     def get(self):
@@ -585,6 +699,11 @@ class UserOverview(Resource):
         return get_user_overview(forum_name)
 
 
+class ForumScraper(Resource):
+    def get(self, topic_num):
+        return scrape_forum(topic_num)
+
+
 # ENDPOINTS
 api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
@@ -597,6 +716,7 @@ api.add_resource(PlayersBasicMinors, '/players/basic/minors')
 api.add_resource(Teams, '/teams')
 api.add_resource(TeamsActive, '/teams/active')
 # api.add_resource(PlayersBasic, '/teams/basic/active')
+api.add_resource(ForumScraper, '/scrape/<topic_num>')
 
 # ENDPOINTS FOR OTHERS
 api.add_resource(UserTransactions, '/user/<forum_name>/transactions')  # for Nerji
