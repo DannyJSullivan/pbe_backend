@@ -638,6 +638,160 @@ def export_to_csv(posts, topic_num):
     return "PBE_Forum_Scraper_" + topic_num + ".csv"
 
 
+def scrape_transactions(start_date, end_date):
+    # trades
+    trades = "https://probaseballexperience.jcink.net/index.php?showforum=172"
+    signings = "https://probaseballexperience.jcink.net/index.php?showforum=179"
+    bidding = "https://probaseballexperience.jcink.net/index.php?showforum=180"
+    cuts = "https://probaseballexperience.jcink.net/index.php?showforum=184"
+
+    urls = []
+
+    print("getting urls from trades...")
+    urls.extend(get_relevant_urls(trades, start_date, end_date))
+    print("getting urls from signings...")
+    urls.extend(get_relevant_urls(signings, start_date, end_date))
+    print("getting urls from bids...")
+    urls.extend(get_relevant_urls(bidding, start_date, end_date))
+    print("getting urls from cuts...")
+    urls.extend(get_relevant_urls(cuts, start_date, end_date))
+
+    cm = {}
+
+    counter = 1
+    print("scraping transactions & updating members...")
+    for url in urls:
+        print("scraping url " + str(counter) + " of " + str(len(urls)))
+        counter += 1
+
+        compendium_members = scrape_transaction(url)
+
+        for c in compendium_members:
+            if is_compendium_member(c):
+                if cm.get(c) is None:
+                    cm.update({c: 1})
+                else:
+                    cm.update({c: cm.get(c) + 1})
+
+    print(cm)
+    return cm
+
+
+def get_relevant_urls(url, start, end):
+    urls = []
+    page_content = requests.get(url).text
+    soup = BeautifulSoup(page_content, "html.parser")
+
+    pages = soup.find("span", attrs={"class": "pagination_pagetxt"})
+
+    if pages is not None:
+        pages = pages.text
+        page_count = re.sub("Pages: \\(", "", pages)
+        page_count = re.sub("\\)", "", page_count)
+    else:
+        page_count = 1
+
+    page_count = int(page_count)
+
+    start_date = datetime.strptime(start, '%Y-%m-%d')
+    end_date = datetime.strptime(end, '%Y-%m-%d')
+
+    # go through each page of posts
+    for x in range(1, page_count + 1):
+        if x == 1:
+            page_content = requests.get(url + "&st=0").text
+        else:
+            page_content = requests.get(url + "&st=" + str(((x - 1) * 15))).text
+
+        soup = BeautifulSoup(page_content, "html.parser")
+        rows = soup.findAll("td", attrs={"class": "row4"})
+        dates = soup.findAll("span", attrs={"class": "desc"})
+
+        # get every other date since this picks up unrelated info
+        del dates[0::2]
+
+        # get every 4th row since this picks up unrelated info
+        del rows[0::2]
+        del rows[1::2]
+
+        # get the urls from the rows
+        all_urls = []
+        for r in rows:
+            all_urls.append(r.find("a").get("href"))
+
+        # go through each post on a page, create users for each post and track necessary info
+        for i in range(0, len(dates)):
+
+            date = dates[i].text.split("-")[0].strip()\
+                .replace("st ", " ").replace("nd ", " ").replace("rd ", " ").replace("th ", " ")
+
+            post_date = datetime.strptime(date, "%d %B %Y")
+
+            if start_date <= post_date <= end_date:
+                print("adding url w/ post date of " + str(post_date))
+                urls.append(all_urls[i])
+            elif start_date > post_date:
+                print("start date of " + str(start_date) + " is greater than " + str(post_date) + ". returning urls.")
+                return urls
+
+    return urls
+
+
+def scrape_transaction(url):
+    page_content = requests.get(url).text
+    soup = BeautifulSoup(page_content, "html.parser")
+
+    navstrip = soup.find("div", attrs={"id": "navstrip"})
+    transaction_content = soup.find("div", attrs={"class": "postcolor"})
+    forum_names = soup.findAll("span", attrs={"class": "normalname"})
+
+    multiplier = 1
+    if "Signings" in navstrip.text:
+        transaction_number = transaction_content.findAll("a")
+        if len(transaction_number) == 0:
+            multiplier = 1
+        else:
+            multiplier = len(transaction_number)
+
+    members = []
+
+    counter = 0
+    for name in forum_names:
+        if counter != 0:
+            members.extend([name.text] * multiplier)
+        counter += 1
+
+    return members
+
+
+def is_compendium_member(name):
+    if "danny" in name:
+        return True
+
+    if "jdwrecker" in name:
+        return True
+
+    if "Bayley" in name:
+        return True
+
+    if "Sen" in name:
+        return True
+
+    if "overdoo" in name:
+        return True
+
+    if "PersonMann" in name:
+        return True
+
+    if "CMac" in name:
+        return True
+
+    if "Haseo" in name:
+        return True
+
+    return False
+
+
 # ENDPOINT CLASSES
 class Home(Resource):
     def get(self):
@@ -704,6 +858,11 @@ class ForumScraper(Resource):
         return scrape_forum(topic_num)
 
 
+class TransactionScraper(Resource):
+    def get(self, start_date, end_date):
+        return scrape_transactions(start_date, end_date)
+
+
 # ENDPOINTS
 api.add_resource(Home, '/')
 api.add_resource(PlayersAll, '/players/all')
@@ -717,6 +876,7 @@ api.add_resource(Teams, '/teams')
 api.add_resource(TeamsActive, '/teams/active')
 # api.add_resource(PlayersBasic, '/teams/basic/active')
 api.add_resource(ForumScraper, '/scrape/<topic_num>')
+api.add_resource(TransactionScraper, '/scrape/transactions/<start_date>/<end_date>')
 
 # ENDPOINTS FOR OTHERS
 api.add_resource(UserTransactions, '/user/<forum_name>/transactions')  # for Nerji
