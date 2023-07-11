@@ -556,9 +556,9 @@ class UserPosts:
         if self.count <= 3:
             money = self.count * 250000
         elif 3 < self.count < 7:
-            money = 750000 + ((self.count - 3) * 62500)
+            money = 750000 + ((self.count - 3) * 50000)
         elif self.count >= 7:
-            money = 1000000
+            money = 950000
 
         self.money = money
 
